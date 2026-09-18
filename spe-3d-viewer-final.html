@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPE AI Family Studio — 3D Viewer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0f172a;color:#e2e8f0;font-family:monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+header{height:52px;background:#0f172a;border-bottom:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-icon{width:32px;height:32px;background:linear-gradient(135deg,#0ea5e9,#6366f1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.brand-name{font-size:13px;font-weight:600;color:#fff;}
+.brand-sub{font-size:11px;color:#64748b;}
+.presets{display:flex;gap:6px;}
+.preset-btn{padding:5px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:11px;cursor:pointer;font-family:monospace;transition:all 0.15s;}
+.preset-btn:hover{background:#334155;color:#e2e8f0;}
+.preset-btn.active{background:#0ea5e9;border-color:#0ea5e9;color:#fff;}
+.main{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:220px;background:#0a0f1a;border-right:1px solid #1e293b;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.sidebar-header{padding:10px 12px;border-bottom:1px solid #1e293b;font-size:11px;color:#64748b;font-weight:600;letter-spacing:0.05em;}
+.comp-list{flex:1;overflow-y:auto;padding:6px;}
+.comp-item{padding:8px 10px;border-radius:6px;cursor:pointer;border:1px solid transparent;margin-bottom:3px;transition:all 0.15s;}
+.comp-item:hover{background:#1e293b;}
+.comp-item.selected{background:rgba(14,165,233,0.1);border-color:#0ea5e9;}
+.comp-name{font-size:12px;color:#e2e8f0;display:flex;align-items:center;gap:6px;}
+.comp-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.comp-size{font-size:10px;color:#475569;margin-top:2px;padding-left:14px;}
+.comp-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:#1e293b;color:#64748b;margin-left:auto;}
+.comp-badge.void{background:rgba(239,68,68,0.15);color:#f87171;}
+.canvas-wrap{flex:1;position:relative;}
+#canvas{display:block;width:100%;height:100%;}
+.overlay-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;}
+.family-badge{background:rgba(10,15,26,0.85);backdrop-filter:blur(8px);border:1px solid #1e293b;border-radius:8px;padding:6px 12px;font-size:12px;color:#e2e8f0;pointer-events:auto;}
+.family-badge span{color:#64748b;}
+.view-btns{display:flex;gap:4px;pointer-events:auto;}
+.view-btn{padding:4px 10px;font-size:11px;border-radius:6px;border:1px solid #334155;background:rgba(10,15,26,0.85);backdrop-filter:blur(8px);color:#94a3b8;cursor:pointer;font-family:monospace;transition:all 0.15s;}
+.view-btn:hover{background:#1e293b;color:#e2e8f0;}
+.view-btn.active{background:#0ea5e9;border-color:#0ea5e9;color:#fff;}
+.overlay-bottom{position:absolute;bottom:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none;}
+.dim-badge{background:rgba(10,15,26,0.85);backdrop-filter:blur(8px);border:1px solid #1e293b;border-radius:8px;padding:5px 12px;font-size:11px;color:#94a3b8;}
+.dim-badge b{color:#38bdf8;}
+.axis-legend{background:rgba(10,15,26,0.85);backdrop-filter:blur(8px);border:1px solid #1e293b;border-radius:8px;padding:5px 10px;display:flex;gap:10px;align-items:center;font-size:11px;color:#64748b;}
+.axis-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px;}
+.hint{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:rgba(10,15,26,0.7);border:1px solid #1e293b;border-radius:6px;padding:4px 12px;font-size:10px;color:#475569;pointer-events:none;white-space:nowrap;}
+.info-panel{position:absolute;top:60px;right:12px;width:180px;background:rgba(10,15,26,0.92);backdrop-filter:blur(8px);border:1px solid #1e293b;border-radius:10px;padding:12px;display:none;}
+.info-panel.show{display:block;}
+.info-title{font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:8px;}
+.info-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;}
+.info-label{color:#64748b;}
+.info-value{color:#38bdf8;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">🏗</div>
+    <div>
+      <div class="brand-name">SPE AI Family Studio</div>
+      <div class="brand-sub">3D BIM Inspector — v1.0</div>
+    </div>
+  </div>
+  <div class="presets">
+    <button class="preset-btn" onclick="loadPreset('chair')">AI_Lounge_Chair_001</button>
+    <button class="preset-btn" onclick="loadPreset('desk')">AI_Executive_Desk_001</button>
+    <button class="preset-btn" onclick="loadPreset('box')">test_box.json</button>
+    <label class="preset-btn import-btn" style="background:#0f4c2a;border-color:#166534;color:#4ade80;cursor:pointer;">
+      &#8593; Import JSON
+      <input type="file" accept=".json" style="display:none;" onchange="importJSON(event)">
+    </label>
+  </div>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-header">COMPONENTS (<span id="comp-count">0</span>)</div>
+    <div class="comp-list" id="comp-list"></div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+
+    <div class="overlay-top">
+      <div class="family-badge">
+        <span id="family-name">—</span>
+        &nbsp;<span style="color:#475569">(<span id="family-cat">—</span>)</span>
+      </div>
+      <div class="view-btns">
+        <button class="view-btn active" id="btn-3d" onclick="setView('3d')">3D Iso</button>
+        <button class="view-btn" id="btn-top" onclick="setView('top')">Plan</button>
+        <button class="view-btn" id="btn-front" onclick="setView('front')">Front</button>
+        <button class="view-btn" id="btn-side" onclick="setView('side')">Side</button>
+      </div>
+    </div>
+
+    <div class="overlay-bottom">
+      <div class="dim-badge">Overall: <b id="dim-text">—</b> | Unit: mm</div>
+      <div class="axis-legend">
+        <span><span class="axis-dot" style="background:#ef4444"></span>X Width</span>
+        <span><span class="axis-dot" style="background:#22c55e"></span>Y Depth</span>
+        <span><span class="axis-dot" style="background:#3b82f6"></span>Z Height</span>
+      </div>
+    </div>
+
+    <div class="hint" id="hint">drag to rotate • scroll to zoom • shift+drag to pan</div>
+
+    <div class="info-panel" id="info-panel">
+      <div class="info-title" id="info-name">—</div>
+      <div class="info-row"><span class="info-label">Type</span><span class="info-value" id="info-type">—</span></div>
+      <div class="info-row"><span class="info-label">W × D × H</span><span class="info-value" id="info-dim">—</span></div>
+      <div class="info-row"><span class="info-label">Position</span><span class="info-value" id="info-pos">—</span></div>
+      <div class="info-row"><span class="info-label">Material</span><span class="info-value" id="info-mat">—</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PRESETS = {
+  chair: {
+    family_name:"AI_Lounge_Chair_001", category:"Furniture",
+    overall_dimensions:{width:740,depth:780,height:860},
+    materials:{Fabric_Gray:"#54595F",Steel_Matte_Black:"#1F2124",Wood_Oak_Accent:"#9E7648"},
+    components:[
+      {id:"comp_seat",name:"Seat Cushion",geo:"extrusion",mat:"Fabric_Gray",dim:{w:520,d:520,h:90},pos:{x:0,y:0,z:390}},
+      {id:"comp_back",name:"Backrest",geo:"extrusion",mat:"Fabric_Gray",dim:{w:520,d:90,h:420},pos:{x:0,y:-215,z:440}},
+      {id:"comp_arm_l",name:"Armrest Left",geo:"extrusion",mat:"Wood_Oak_Accent",dim:{w:60,d:440,h:180},pos:{x:-290,y:0,z:430}},
+      {id:"comp_arm_r",name:"Armrest Right",geo:"extrusion",mat:"Wood_Oak_Accent",dim:{w:60,d:440,h:180},pos:{x:290,y:0,z:430}},
+      {id:"comp_leg_fl",name:"Leg Front Left",geo:"extrusion",mat:"Steel_Matte_Black",dim:{w:36,d:36,h:390},pos:{x:-250,y:220,z:0}},
+      {id:"comp_leg_fr",name:"Leg Front Right",geo:"extrusion",mat:"Steel_Matte_Black",dim:{w:36,d:36,h:390},pos:{x:250,y:220,z:0}},
+      {id:"comp_leg_bl",name:"Leg Back Left",geo:"extrusion",mat:"Steel_Matte_Black",dim:{w:36,d:36,h:390},pos:{x:-250,y:-220,z:0}},
+      {id:"comp_leg_br",name:"Leg Back Right",geo:"extrusion",mat:"Steel_Matte_Black",dim:{w:36,d:36,h:390},pos:{x:250,y:-220,z:0}},
+    ]
+  },
+  desk: {
+    family_name:"AI_Executive_Desk_001", category:"Furniture",
+    overall_dimensions:{width:1400,depth:750,height:750},
+    materials:{Natural_Walnut:"#5C4033",Industrial_Steel:"#2B2D2F"},
+    components:[
+      {id:"desk_top",name:"Desktop",geo:"extrusion",mat:"Natural_Walnut",dim:{w:1400,d:750,h:35},pos:{x:0,y:0,z:715}},
+      {id:"cable_void",name:"Cable Void",geo:"void",mat:"",dim:{w:180,d:80,h:45},pos:{x:0,y:-260,z:710}},
+      {id:"leg_l",name:"Leg Frame Left",geo:"extrusion",mat:"Industrial_Steel",dim:{w:50,d:680,h:715},pos:{x:-620,y:0,z:0}},
+      {id:"leg_r",name:"Leg Frame Right",geo:"extrusion",mat:"Industrial_Steel",dim:{w:50,d:680,h:715},pos:{x:620,y:0,z:0}},
+      {id:"stretcher",name:"Stretcher Beam",geo:"extrusion",mat:"Industrial_Steel",dim:{w:1200,d:40,h:40},pos:{x:0,y:-150,z:250}},
+    ]
+  },
+  box: {
+    family_name:"AI_Test_Box_001", category:"Furniture",
+    overall_dimensions:{width:1000,depth:500,height:100},
+    materials:{Test_Material_Blue:"#2B6CB0"},
+    components:[
+      {id:"box_body",name:"Box Body",geo:"extrusion",mat:"Test_Material_Blue",dim:{w:1000,d:500,h:100},pos:{x:0,y:0,z:0}},
+    ]
+  }
+};
+
+const canvas = document.getElementById('canvas');
+const wrap = canvas.parentElement;
+
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 10, 50000);
+camera.up.set(0,0,1);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dl = new THREE.DirectionalLight(0xffffff, 0.9);
+dl.position.set(1500,-1200,2500);
+dl.castShadow = true;
+scene.add(dl);
+const dl2 = new THREE.DirectionalLight(0xe2e8f0, 0.4);
+dl2.position.set(-1500,1200,1000);
+scene.add(dl2);
+
+const grid = new THREE.GridHelper(6000,40,0x1e293b,0x1e293b);
+grid.rotation.x = Math.PI/2;
+scene.add(grid);
+scene.add(new THREE.AxesHelper(300));
+
+let meshMap = {};
+let selectedId = null;
+let currentData = null;
+let bbLine = null;
+
+function clearScene() {
+  Object.values(meshMap).forEach(({mesh}) => {
+    scene.remove(mesh);
+    mesh.geometry.dispose();
+    if(Array.isArray(mesh.material)) mesh.material.forEach(m=>m.dispose());
+    else mesh.material.dispose();
+  });
+  meshMap = {};
+  if(bbLine) { scene.remove(bbLine); bbLine = null; }
+}
+
+function loadPreset(key) {
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  selectedId = null;
+  document.getElementById('info-panel').classList.remove('show');
+  buildScene(PRESETS[key]);
+}
+
+function buildScene(data) {
+  clearScene();
+  currentData = data;
+
+  document.getElementById('family-name').textContent = data.family_name;
+  document.getElementById('family-cat').textContent = data.category;
+  const od = data.overall_dimensions;
+  document.getElementById('dim-text').textContent = `${od.width}W × ${od.depth}D × ${od.height}H`;
+  document.getElementById('comp-count').textContent = data.components.length;
+
+  data.components.forEach(comp => {
+    const {w,d,h} = comp.dim;
+    const {x,y,z} = comp.pos;
+    const geo = new THREE.BoxGeometry(w,d,h);
+    const isVoid = comp.geo === 'void';
+    const color = data.materials[comp.mat] || '#888888';
+
+    let mat;
+    if(isVoid) {
+      mat = new THREE.MeshStandardMaterial({
+        color:0xef4444, transparent:true, opacity:0.4,
+        side:THREE.DoubleSide, roughness:0.3
+      });
+    } else {
+      mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color),
+        side: THREE.DoubleSide,
+        roughness: 0.5,
+        metalness: comp.mat && comp.mat.toLowerCase().includes('steel') ? 0.6 : 0.05,
+      });
+    }
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z + h/2);
+    mesh.castShadow = !isVoid;
+    mesh.receiveShadow = true;
+    mesh.userData = {id:comp.id, comp};
+    scene.add(mesh);
+
+    if(isVoid) {
+      const edges = new THREE.EdgesGeometry(geo);
+      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0xb91c1c}));
+      mesh.add(line);
+    }
+
+    meshMap[comp.id] = {mesh, comp, origColor:color, isVoid};
+  });
+
+  const bbGeo = new THREE.BoxGeometry(od.width, od.depth, od.height);
+  const bbEdge = new THREE.EdgesGeometry(bbGeo);
+  bbLine = new THREE.LineSegments(bbEdge, new THREE.LineDashedMaterial({color:0x475569,dashSize:50,gapSize:25}));
+  bbLine.computeLineDistances();
+  bbLine.position.set(0,0,od.height/2);
+  scene.add(bbLine);
+
+  renderList();
+  setView('3d');
+}
+
+function selectComp(id) {
+  selectedId = id;
+  Object.values(meshMap).forEach(({mesh,isVoid,origColor}) => {
+    if(!isVoid) {
+      mesh.material.emissive = new THREE.Color(0x000000);
+      mesh.material.emissiveIntensity = 0;
+    }
+  });
+  const panel = document.getElementById('info-panel');
+  if(id && meshMap[id]) {
+    const {mesh,comp,isVoid} = meshMap[id];
+    if(!isVoid) {
+      mesh.material.emissive = new THREE.Color(0x0ea5e9);
+      mesh.material.emissiveIntensity = 0.3;
+    }
+    document.getElementById('info-name').textContent = comp.name;
+    document.getElementById('info-type').textContent = comp.geo.toUpperCase();
+    document.getElementById('info-dim').textContent = `${comp.dim.w}×${comp.dim.d}×${comp.dim.h}`;
+    document.getElementById('info-pos').textContent = `(${comp.pos.x},${comp.pos.y},${comp.pos.z})`;
+    document.getElementById('info-mat').textContent = comp.mat || 'void';
+    panel.classList.add('show');
+  } else {
+    panel.classList.remove('show');
+  }
+  renderList();
+}
+
+function renderList() {
+  const list = document.getElementById('comp-list');
+  list.innerHTML = '';
+  if(!currentData) return;
+  currentData.components.forEach(comp => {
+    const color = currentData.materials[comp.mat] || '#ef4444';
+    const isVoid = comp.geo === 'void';
+    const isSel = comp.id === selectedId;
+    const el = document.createElement('div');
+    el.className = 'comp-item' + (isSel?' selected':'');
+    el.innerHTML = `
+      <div class="comp-name">
+        <div class="comp-dot" style="background:${isVoid?'#ef4444':color}"></div>
+        ${comp.name}
+        <span class="comp-badge${isVoid?' void':''}">${isVoid?'VOID':'EXT'}</span>
+      </div>
+      <div class="comp-size">${comp.dim.w} × ${comp.dim.d} × ${comp.dim.h} mm</div>
+    `;
+    el.onclick = () => selectComp(isSel ? null : comp.id);
+    list.appendChild(el);
+  });
+}
+
+function setView(v) {
+  ['3d','top','front','side'].forEach(x => {
+    const b = document.getElementById('btn-'+x);
+    if(b) { b.classList.toggle('active', x===v); }
+  });
+  const od = currentData ? currentData.overall_dimensions : {width:1000,depth:1000,height:1000};
+  const dist = Math.max(od.width,od.depth,od.height)*2.5;
+  const cx=0, cy=0, cz=od.height/2;
+  if(v==='3d') { camera.position.set(dist*0.8,-dist,-dist*0.6); camera.lookAt(cx,cy,cz); }
+  else if(v==='top') { camera.position.set(cx,cy,dist*2); camera.lookAt(cx,cy,0); }
+  else if(v==='front') { camera.position.set(cx,-dist*1.5,cz); camera.lookAt(cx,cy,cz); }
+  else if(v==='side') { camera.position.set(dist*1.5,cy,cz); camera.lookAt(cx,cy,cz); }
+}
+
+const raycaster = new THREE.Raycaster();
+canvas.addEventListener('click', e => {
+  if(didDrag) return;
+  const rect = canvas.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((e.clientX-rect.left)/rect.width)*2-1,
+    -((e.clientY-rect.top)/rect.height)*2+1
+  );
+  raycaster.setFromCamera(mouse,camera);
+  const hits = raycaster.intersectObjects(Object.values(meshMap).map(m=>m.mesh));
+  selectComp(hits.length ? hits[0].object.userData.id : null);
+});
+
+let isDrag=false, didDrag=false, isPan=false, prevX=0, prevY=0;
+canvas.addEventListener('mousedown',e=>{
+  isDrag=true; didDrag=false; isPan=e.shiftKey||e.button===2;
+  prevX=e.clientX; prevY=e.clientY;
+});
+window.addEventListener('mousemove',e=>{
+  if(!isDrag)return;
+  const dx=e.clientX-prevX, dy=e.clientY-prevY;
+  if(Math.abs(dx)>2||Math.abs(dy)>2) didDrag=true;
+  prevX=e.clientX; prevY=e.clientY;
+  if(isPan) {
+    const right=new THREE.Vector3();
+    camera.getWorldDirection(right);
+    right.cross(camera.up).normalize();
+    camera.position.addScaledVector(right,-dx*1.5);
+    camera.position.addScaledVector(camera.up,dy*1.5);
+  } else {
+    const r=camera.position.length();
+    let theta=Math.atan2(camera.position.y,camera.position.x);
+    let phi=Math.acos(Math.max(-1,Math.min(1,camera.position.z/r)));
+    theta-=dx*0.008; phi=Math.max(0.05,Math.min(Math.PI-0.05,phi-dy*0.008));
+    camera.position.set(r*Math.sin(phi)*Math.cos(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(phi));
+    const od=currentData?currentData.overall_dimensions:{height:500};
+    camera.lookAt(0,0,od.height/2);
+  }
+});
+window.addEventListener('mouseup',()=>{isDrag=false;isPan=false;});
+canvas.addEventListener('wheel',e=>{e.preventDefault();camera.position.multiplyScalar(e.deltaY>0?1.1:0.9);},{passive:false});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+function resize() {
+  const w=wrap.clientWidth, h=wrap.clientHeight;
+  renderer.setSize(w,h);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resize);
+resize();
+
+(function animate(){requestAnimationFrame(animate);renderer.render(scene,camera);})();
+
+setTimeout(()=>{
+  document.getElementById('hint').style.opacity='0';
+  document.getElementById('hint').style.transition='opacity 1s';
+},4000);
+
+function importJSON(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const raw = JSON.parse(ev.target.result);
+      const fam = raw.family;
+      if(!fam) { alert('ไม่พบ field "family" ในไฟล์นี้'); return; }
+      const matMap = {};
+      (fam.materials||[]).forEach(m => matMap[m.name] = m.color || '#888888');
+      const data = {
+        family_name: fam.family_name || file.name,
+        category: fam.category || 'Generic',
+        overall_dimensions: fam.overall_dimensions || {width:1000,depth:1000,height:1000},
+        materials: matMap,
+        components: (fam.components||[]).map(c=>({
+          id: c.id,
+          name: c.name,
+          geo: c.geometry_type || 'extrusion',
+          mat: c.material || '',
+          dim: { w:c.dimensions.width, d:c.dimensions.depth, h:c.dimensions.height },
+          pos: { x:c.position.x, y:c.position.y, z:c.position.z }
+        }))
+      };
+      document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+      selectedId = null;
+      document.getElementById('info-panel').classList.remove('show');
+      buildScene(data);
+    } catch(err) {
+      alert('อ่านไฟล์ไม่ได้: ' + err.message);
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+loadPreset('chair');
+document.querySelector('.preset-btn').classList.add('active');
+</script>
+</body>
+</html>
